@@ -44,21 +44,36 @@ mkdir -p "$CACHE" "$SRC_ROOT"
 
 # ---------- 1. 解析 main 的 commit sha ----------
 bold "1/6 查询 GitHub 上 main 分支的最新提交"
-SHA="$(curl -fsSL --max-time 25 -H 'User-Agent: blog-deploy' \
-        "https://api.github.com/repos/$REPO/commits/main" \
-      | grep -m1 '"sha"' | sed -E 's/.*"sha"[[:space:]]*:[[:space:]]*"([0-9a-f]{40})".*/\1/')"
-[[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || die "拿不到 commit sha（检查 api.github.com 连通性）"
-ok "远端 HEAD = ${SHA:0:7}"
+# 坑：api.github.com 返回的是【单行紧凑 JSON】，里面有多个 "sha" 字段
+# （commit / tree / parents…）。旧版写的是 grep -m1 '"sha"' | sed 's/.*"sha"…/\1/'，
+# 而 sed 的 .* 是贪婪的，会匹配到整行【最后一个】sha —— 也就是 tree 的 sha，
+# 拿它去 codeload 下 tar.gz 必然 404（curl exit 22）。这里改成 grep -o + head -n1 取第一个。
+API_RESP="$(curl -fsSL --max-time 30 -H 'User-Agent: blog-deploy' \
+              "https://api.github.com/repos/$REPO/commits/main" || true)"
+SHA="$(printf '%s' "$API_RESP" | grep -o '"sha": *"[0-9a-f]\{40\}"' | head -n1 | grep -o '[0-9a-f]\{40\}' || true)"
+
 STAMP_FILE="$SRC_ROOT/.deployed-sha"
 CURRENT="$(cat "$STAMP_FILE" 2>/dev/null || echo none)"
+
+if [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]; then
+  ok "远端 HEAD = ${SHA:0:7}"
+  TARBALL_URL="https://codeload.github.com/$REPO/tar.gz/$SHA"
+  TARBALL="$CACHE/blog-${SHA:0:7}.tar.gz"
+else
+  warn "没解析出 commit sha，退化为直接下载 main 最新快照"
+  SHA="main-$(date +%Y%m%d%H%M%S)"
+  TARBALL_URL="https://codeload.github.com/$REPO/tar.gz/refs/heads/main"
+  TARBALL="$CACHE/blog-main.tar.gz"
+  CURRENT="none"
+fi
 [[ "$CURRENT" == "$SHA" ]] && warn "和上次部署的是同一个提交，仍会重新构建同步"
 
 # ---------- 2. 下载并解压源码 ----------
 bold "2/6 下载源码压缩包"
-TARBALL="$CACHE/blog-${SHA:0:7}.tar.gz"
+mkdir -p "$CACHE"
 if [[ ! -s "$TARBALL" ]]; then
-  curl -fL --max-time 600 --retry 3 --retry-delay 3 -o "$TARBALL.part" \
-    "https://codeload.github.com/$REPO/tar.gz/$SHA"
+  curl -fL --max-time 900 --retry 3 --retry-delay 3 -o "$TARBALL.part" "$TARBALL_URL" \
+    || die "下载失败：$TARBALL_URL"
   mv "$TARBALL.part" "$TARBALL"
 fi
 ok "压缩包 $(du -h "$TARBALL" | cut -f1)"
