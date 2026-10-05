@@ -1,0 +1,24 @@
+# 统一换行符：避免 Windows 的 core.autocrlf=true 把 shell 脚本变成 CRLF
+# （CRLF 的 .sh 在 Linux 上会报 "bad interpreter: /bin/bash^M"）
+* text=auto eol=lf
+
+*.sh   text eol=lf
+*.conf text eol=lf
+*.mjs  text eol=lf
+*.js   text eol=lf
+*.ts   text eol=lf
+*.astro text eol=lf
+*.css  text eol=lf
+*.md   text eol=lf
+
+# 二进制资源不要动
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.webp binary
+*.ico  binary
+*.opus binary
+*.mp3  binary
+*.woff binary
+*.woff2 binary
+*.lrc  text eol=lf
