@@ -96,7 +96,7 @@ ok "源码就位：$SRC_ROOT"
 
 # ---------- 3. 安装依赖 ----------
 bold "3/6 安装依赖"
-if [[ -d "$SITE_DIR/node_modules" && -f "$SITE_DIR/node_modules/.package-lock.json" ]]; then
+if [[ -d "$SITE_DIR/node_modules" ]]; then
   ok "node_modules 已存在，跳过（要强制重装就删掉 $SITE_DIR/node_modules）"
 else
   as_user "cd '$SITE_DIR' && npm ci --no-audit --no-fund 2>&1 | tail -6"
