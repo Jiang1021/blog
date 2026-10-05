@@ -2,7 +2,7 @@
 
 个人博客。**Astro 纯静态**，黑白双主题，线条是唯一的装饰。
 
-> 当前状态：本地开发完成，已部署目标为局域网服务器 `192.168.31.149`，公网暂不暴露。
+> 当前状态：本地开发完成，部署目标为局域网服务器 `192.168.31.149`，公网暂不暴露。
 
 ## 预览
 
@@ -82,6 +82,13 @@ ffmpeg -i in.flac -map 0:a -c:a libopus -b:a 160k -vbr on -application audio out
 ffmpeg -i in.flac -map 0:a -c:a libmp3lame -b:a 192k out.mp3
 # 封面 → WebP
 ffmpeg -i cover.jpg -c:v libwebp -quality 88 cover.webp
+```
+
+## 测试
+
+```bash
+cd blog-astro
+npm run test:lyrics     # LRC 解析模块单元测试（Node 内置 test runner，31 项，零第三方依赖）
 ```
 
 ## 致谢
