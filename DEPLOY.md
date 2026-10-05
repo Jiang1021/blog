@@ -22,8 +22,8 @@ sudo bash /home/jiang1021/blog-src/deploy/deploy-blog.sh
 流程：查 GitHub 上 `main` 的最新 commit → 下载该 commit 的源码压缩包 →
 `npm ci` → `npm run build` → `rsync` 到 `/var/www/blog` → 重载 nginx。
 
-脚本是幂等的：同一个 commit 重复执行会跳过解压和依赖安装，直接重建 + 同步。
-用 `flock` 加了锁，不会有两个部署同时跑。
+脚本是幂等的：同一个 commit 重复执行会复用已有的 `node_modules`（不重装依赖），
+直接重新构建 + 同步。用 `flock` 加了锁，不会有两个部署同时跑。
 
 > 首次部署时 `blog-src` 还不存在，需要先手动把源码弄到服务器上，见下面「首次部署」。
 
@@ -75,7 +75,9 @@ chown -R jiang1021:jiang1021 /home/jiang1021/blog-src
 sudo bash /home/jiang1021/blog-src/deploy/deploy-blog.sh
 ```
 
-（`blog-src` 里的 `deploy/deploy-blog.sh` 脚本自己会处理后面所有事。）
+（第 2 步只是为了先把脚本本身弄到服务器上；脚本跑起来后会按同一个 commit
+重新下载一份到自己的缓存目录 `~/.cache/blog-deploy/`。如果你已经用别的办法
+（scp、U 盘、粘贴）把 `deploy/deploy-blog.sh` 传到服务器，直接从第 3 步开始就行。）
 
 ---
 
@@ -97,6 +99,8 @@ sudo bash /home/jiang1021/blog-src/deploy/deploy-blog.sh
   `/about/` 实际是 `/about/index.html`
 - `/_astro/` 下的文件名带内容 hash → 缓存 1 年、`immutable`
 - 音频/封面/歌词文件名不带 hash → 只缓存 7 天，改了能马上生效
+- **opus 单独配了 MIME**：Debian 的 `/etc/nginx/mime.types` 里没有 `.opus`，
+  不补 `default_type audio/ogg` 的话浏览器会收到 `application/octet-stream`
 - HTML 不缓存（`expires -1`），不然部署完还看到旧页面
 - gzip 已开，覆盖 css/js/json/svg
 
@@ -114,6 +118,8 @@ nginx 以 `www-data` 运行，而 `/home/jiang1021` 是 `drwx--x---`（只有 ow
 # 服务器本机
 curl -sI http://127.0.0.1/ | head -1                    # → HTTP/1.1 200 OK
 curl -s  http://127.0.0.1/ | grep -o '<title>[^<]*'     # → <title>江枫的实验室
+curl -sI http://127.0.0.1/media/cai-shi.opus | grep -i content-type   # → audio/ogg
+curl -sI http://127.0.0.1/_astro/*.css | head -1        # → Cache-Control: public, immutable
 
 # 局域网（Windows 上）
 curl -sI http://192.168.31.149/
@@ -123,12 +129,20 @@ curl -sI http://192.168.31.149/
 
 ## 回滚
 
-源码目录里没有 `.git`，回滚 = 用旧 commit 的 sha 重跑一遍：
+源码目录里没有 `.git`。部署脚本永远跟踪 `main` 的 HEAD，所以**回滚要手动来**：
 
 ```bash
-# 改成想回滚到的 commit sha，然后重新执行部署脚本
-# （脚本的「下载源码」那步会把 SHA 拼进压缩包名）
+OLD=<想回滚到的 40 位 commit sha>
+curl -fL -o /tmp/old.tar.gz "https://codeload.github.com/Jiang1021/blog/tar.gz/$OLD"
+rm -rf /tmp/old && mkdir -p /tmp/old
+tar -xzf /tmp/old.tar.gz -C /tmp/old --strip-components=1
+cd /tmp/old/blog-astro && npm ci --no-audit --no-fund && npm run build
+sudo rsync -a --delete --chmod=D755,F644 dist/ /var/www/blog/
+sudo chown -R root:root /var/www/blog
 ```
+
+（更省事的做法：直接改本地仓库、`git revert` 后推回 `main`，再在服务器跑一次
+部署脚本 —— 脚本会跟着 `main` 一起回退。）
 
 或者临时改 `/var/www/blog` 里的文件（但下次部署会被 `rsync --delete` 覆盖）。
 

@@ -12,6 +12,9 @@ dist/
 .ref-home.html
 .ref-island.css
 
+# 本地验证脚本产物（浏览器截图）
+shots/
+
 # 杂项
 *.log
 .DS_Store
