@@ -1,0 +1,24 @@
+import { chromium } from 'playwright-core';
+const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+const URL_ = 'http://localhost:4321/';
+const b = await chromium.launch({ executablePath: CHROME, headless: true, args: ['--autoplay-policy=no-user-gesture-required'] });
+const mk = async (w, h, theme, name, action) => {
+  const p = await b.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2 });
+  await p.addInitScript(t => { try { localStorage.setItem('blog-theme', t); } catch {} }, theme);
+  await p.goto(URL_, { waitUntil: 'load' });
+  await p.waitForTimeout(700);
+  if (action) await action(p);
+  await p.screenshot({ path: 'shots/' + name });
+  await p.close();
+};
+const open = async p => { await p.waitForFunction(() => document.querySelector('#site-island')?.dataset.bound === '1', null, { timeout: 15000 }).catch(() => {}); await p.dispatchEvent('#site-island', 'pointerenter'); await p.waitForTimeout(1400); };
+const play = async p => { await open(p); await p.click('#island-player-toggle', { force: true }); await p.waitForTimeout(2000); await p.evaluate(() => { document.querySelector('#site-island-audio').currentTime = 100; }); await p.waitForTimeout(900); };
+const vol = async p => { await open(p); await p.click('#island-volume-button', { force: true }); await p.waitForTimeout(500); };
+await mk(1600, 900, 'light', 'island-01-collapsed-light.png', async p => { await p.dispatchEvent('#site-island', 'pointerenter'); });
+await mk(1600, 900, 'light', 'island-02-expanded-light.png', play);
+await mk(1600, 900, 'dark', 'island-03-expanded-dark.png', play);
+await mk(1600, 900, 'dark', 'island-04-volume-dark.png', vol);
+await mk(430, 900, 'light', 'island-05-mobile.png', play);
+await mk(1600, 900, 'dark', 'island-06-hero-dark.png', null);
+console.log('shots done');
+await b.close();

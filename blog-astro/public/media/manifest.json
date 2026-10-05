@@ -1,0 +1,25 @@
+{
+  "title": "采石",
+  "artist": "万能青年旅店",
+  "album": "冀西南林路行",
+  "duration": 536.17,
+  "durationText": "8:56",
+  "sources": [
+    {
+      "src": "/media/cai-shi.opus",
+      "type": "audio/ogg; codecs=opus",
+      "sizeBytes": 5119490
+    },
+    {
+      "src": "/media/cai-shi.mp3",
+      "type": "audio/mpeg",
+      "sizeBytes": 8580637
+    }
+  ],
+  "cover": {
+    "webp": "/media/cai-shi-cover.webp",
+    "jpg": "/media/cai-shi-cover.jpg",
+    "width": 640,
+    "height": 640
+  }
+}

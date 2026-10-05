@@ -1,0 +1,18 @@
+---
+import { site, socials } from '../data/site';
+const year = 2026;
+---
+
+<footer class="footer">
+  <div class="wrap footer__inner">
+    <p>© {year} {site.handle} · 用 Astro 构建 · 主机在客厅的旧笔记本上</p>
+    <p>
+      {socials.map((s, i) => (
+        <>
+          {i > 0 && <span aria-hidden="true"> · </span>}
+          <a class="footer__link" href={s.href}>{s.label}</a>
+        </>
+      ))}
+    </p>
+  </div>
+</footer>

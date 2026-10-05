@@ -1,0 +1,223 @@
+---
+/**
+ * DynamicIsland.astro —— 顶栏居中的「灵动岛」音乐播放器（结构层）。
+ *
+ * 结构、类名与 id 全部照搬 bad0rang3.xyz 的实现；样式在 src/styles/island.css，
+ * 行为在 public/island-player.js（纯原生 JS，由 src/scripts/island-loader.ts 懒加载）。
+ * 这个组件只负责把 HTML 摆出来，并注入懒加载器的注册调用。
+ */
+import { player, track, tracks } from '../data/site';
+
+const cover = track.cover.webp || track.cover.jpg;
+/** 整份播放列表塞进 data-*，播放器脚本据此切歌（本站新增，参考站是单曲硬编码） */
+const playlistJson = JSON.stringify(
+  tracks.map((item) => ({
+    id: item.id,
+    title: item.title,
+    artist: item.artist,
+    album: item.album,
+    duration: item.duration,
+    lyrics: item.lyrics,
+    cover: item.cover,
+    sources: item.sources.map((source) => source.src),
+    externalUrl: item.externalUrl,
+  })),
+);
+const durationText = `−${Math.floor(track.duration / 60)}:${String(Math.floor(track.duration % 60)).padStart(2, '0')}`;
+const bars = (count: number) => Array.from({ length: count }, (_, i) => i);
+---
+
+<div
+  class="dynamic-island music-island"
+  id="site-island"
+  data-open="false"
+  data-volume-open="false"
+  data-cue-active="false"
+  data-player-state="idle"
+  data-api-base=""
+  data-audio-src={track.sources[0].src}
+  data-lyrics-src={track.lyrics}
+  data-song-duration={String(track.duration)}
+  data-song-title={track.title}
+  data-player-playlist={playlistJson}
+>
+  <button
+    class="island-summary"
+    id="site-island-toggle"
+    type="button"
+    aria-expanded="false"
+    aria-controls="site-island-panel"
+    aria-label={`展开 ${track.title} 的播放器`}
+  >
+    <img class="island-mini-art" src={cover} alt="" width="32" height="32" loading="eager" decoding="async" />
+    <span class="island-summary-copy">
+      <span class="island-track-title">{track.title}</span>
+      <span class="island-track-artist">{track.artist}</span>
+    </span>
+    <span class="island-mini-wave" data-audio-visualizer="compact" aria-hidden="true">
+      {bars(6).map((i) => <i style={`--visualizer-index:${i}`} />)}
+    </span>
+  </button>
+
+  <div class="island-section-cue" id="island-section-cue" aria-hidden="true">
+    <span class="island-cue-pulse"></span>
+    <span class="island-cue-copy">
+      <small>SECTION</small>
+      <strong id="island-section-label">首页概览</strong>
+    </span>
+  </div>
+
+  <div class="island-panel island-player-panel" id="site-island-panel">
+    <div class="island-player-heading">
+      <img
+        class="island-player-art"
+        src={cover}
+        alt={`${track.title} 封面`}
+        width="96"
+        height="96"
+        loading="eager"
+        decoding="async"
+      />
+      <div class="island-player-copy">
+        <p class="island-player-lyric" id="island-player-lyric">{track.title}</p>
+        <span>{track.artist}</span>
+        <span class="island-player-status" id="island-player-status" role="status" aria-live="polite"></span>
+      </div>
+      <span class="island-expanded-wave" data-audio-visualizer="expanded" aria-hidden="true">
+        {bars(6).map((i) => <i style={`--visualizer-index:${i}`} />)}
+      </span>
+    </div>
+
+    <div class="island-player-timeline">
+      <input
+        id="island-player-scrubber"
+        type="range"
+        min="0"
+        max={String(track.duration)}
+        value="0"
+        step="0.1"
+        disabled
+        aria-label="播放进度"
+      />
+      <div>
+        <span id="island-player-elapsed">0:00</span>
+        <span id="island-player-duration">{durationText}</span>
+      </div>
+    </div>
+
+    <div class="island-player-actions">
+      <a
+        class="island-player-favorite"
+        id="island-player-favorite"
+        href={track.externalUrl}
+        target="_blank"
+        rel="noreferrer"
+        aria-label="在网易云音乐中打开这首歌"
+        title="在网易云音乐中打开"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m12 2.8 2.75 5.57 6.15.9-4.45 4.34 1.05 6.13L12 16.84l-5.5 2.9 1.05-6.13L3.1 9.27l6.15-.9L12 2.8Z"></path>
+        </svg>
+      </a>
+
+      <button
+        class="island-player-skip island-player-skip--previous"
+        id="island-player-previous"
+        type="button"
+        aria-label="上一首"
+        title="上一首"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 6v12l8-6-8-6Zm9.5 0v12l8-6-8-6Z"></path>
+        </svg>
+      </button>
+
+      <button class="island-player-toggle" id="island-player-toggle" type="button" aria-label={`播放 ${track.title}`}>
+        <svg class="player-icon player-icon--play" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m8 5 11 7-11 7z"></path>
+        </svg>
+        <svg class="player-icon player-icon--pause" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 3h6v18H4zm10 0h6v18h-6z"></path>
+        </svg>
+      </button>
+
+      <button
+        class="island-player-skip island-player-skip--next"
+        id="island-player-next"
+        type="button"
+        aria-label="下一首"
+        title="下一首"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 6v12l8-6-8-6Zm9.5 0v12l8-6-8-6Z"></path>
+        </svg>
+      </button>
+
+      <div class="island-volume-control" id="island-volume-control">
+        <button
+          class="island-volume-button"
+          id="island-volume-button"
+          type="button"
+          aria-label="调整音量"
+          aria-controls="island-volume-menu"
+          aria-expanded="false"
+        >
+          <svg class="volume-icon volume-icon--on island-output-icon" viewBox="0 0 32 32" aria-hidden="true">
+            <path d="m16 20-6.5 9h13L16 20Z"></path>
+            <path
+              d="M11.6 19.2a6 6 0 1 1 8.8 0M8.5 22.2a10 10 0 1 1 15 0M5.5 25.2a14 14 0 1 1 21 0"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"></path>
+          </svg>
+          <svg class="volume-icon volume-icon--muted island-output-icon" viewBox="0 0 32 32" aria-hidden="true">
+            <path d="m16 20-6.5 9h13L16 20Z"></path>
+            <path
+              d="M11.6 19.2a6 6 0 1 1 8.8 0M8.5 22.2a10 10 0 1 1 15 0M5.5 25.2a14 14 0 1 1 21 0M6 6l20 20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"></path>
+          </svg>
+        </button>
+
+        <div class="island-volume-menu" id="island-volume-menu" role="group" aria-label="音量控制">
+          <button class="island-volume-mute" id="island-volume-mute" type="button" aria-label="静音">
+            <svg class="volume-icon volume-icon--on" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 9v6h4l5 4V5L8 9H4z"></path>
+              <path d="M16 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+            </svg>
+            <svg class="volume-icon volume-icon--muted" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 9v6h4l5 4V5L8 9H4z"></path>
+              <path d="m17 9 4 4m0-4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
+            </svg>
+          </button>
+          <input
+            id="island-volume-slider"
+            type="range"
+            min="0"
+            max="1"
+            value={String(player.volume)}
+            step="0.01"
+            aria-label="播放器音量"
+          />
+          <output id="island-volume-value" for="island-volume-slider">{Math.round(player.volume * 100)}%</output>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <audio id="site-island-audio" src={track.sources[0].src} preload="none" data-source-ready="true"></audio>
+</div>
+
+<script>
+  import { registerIsland } from '../scripts/island-loader';
+
+  const start = () => registerIsland();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start, { once: true });
+  } else {
+    start();
+  }
+</script>
