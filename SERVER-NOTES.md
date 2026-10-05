@@ -95,3 +95,13 @@
 - 已有自签证书 ~/share/webdav.crt（CN=8.138.196.189, SAN 8.138.196.189 + 192.168.31.149），只适用于 IP 访问，**不适合博客**（需要域名 + Let's Encrypt）
 - apt 可装 nginx 1.26.3-3+deb13u9（含 nginx-common，仅 2 个包，dry-run 通过）；apache2 2.4.68 仍在但 disabled
 - **建站定位（m00148 更新）**：先做**私网可用**版本（局域网 192.168.31.x 内访问），公网暴露不在当前范围；页面风格不照搬参考站，用户自己微调
+
+---
+
+## 附：GitHub 仓库
+
+- 地址：https://github.com/Jiang1021/blog （public，默认分支 `main`）
+- 本地仓库根：`D:\WorkSpace\blog`（**注意不是 blog-astro**），远端 `origin` 已配好
+- 首次推送踩的坑：本机 `github.com:443` 直连不通，但系统代理 `127.0.0.1:7897` 可用，
+  已写进仓库本地配置 `git config --local http.proxy / https.proxy`
+- 验证方式：`git clone` 到临时目录 → `npm ci` → `npm run build`（1 page）→ `npm run test:lyrics`（31 通过）
