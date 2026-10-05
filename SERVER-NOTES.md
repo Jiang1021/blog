@@ -105,3 +105,35 @@
 - 首次推送踩的坑：本机 `github.com:443` 直连不通，但系统代理 `127.0.0.1:7897` 可用，
   已写进仓库本地配置 `git config --local http.proxy / https.proxy`
 - 验证方式：`git clone` 到临时目录 → `npm ci` → `npm run build`（1 page）→ `npm run test:lyrics`（31 通过）
+
+---
+
+## 附：部署现状（2026-10-05 完成）
+
+**站点已在跑：http://192.168.31.149/**（局域网可访问，Windows 与服务器本机都实测 200）
+
+- nginx 1.26.3 已 apt 安装，`systemctl enable`（开机自启）+ active，监听 0.0.0.0:80
+- 站点根目录 `/var/www/blog`（37M，443 个文件，root:root）
+- 源码 `/home/jiang1021/blog-src`（解压出来的，**无 .git**）；缓存 `~/.cache/blog-deploy/`
+- 部署脚本 `deploy/deploy-blog.sh`，入口：`echo jiang1021 | sudo -S -p '' bash /tmp/deploy-blog.sh`
+  - **注意：`sudo` 不是 NOPASSWD**，非交互 SSH 里直接 `sudo bash ...` 会报「读取密码需要一个终端」，
+    必须用 `echo <密码> | sudo -S -p '' ...` 形式
+- **服务器连不上 github.com:443**（TCP 层被挡，DNS 正常），所以：
+  - ❌ `git clone` 不能用于部署
+  - ✅ `api.github.com`（查 sha）、`codeload.github.com`（下 tar.gz）都通
+  - 部署脚本：api 查 main 的 HEAD sha → codeload 下该 sha 的 tar.gz → `npm ci` → `npm run build` → rsync
+  - 踩过的坑：旧脚本用 `grep -m1 '"sha"' | sed` 解析，api 返回的是单行紧凑 JSON 且含多个 sha，
+    sed 的 `.*` 贪婪匹配到 **tree 的 sha** → codeload 404（curl exit 22）。改成 `grep -o '"sha": *"[0-9a-f]\{40\}"' | head -n1`
+- MIME 修补（Debian 的 `/etc/nginx/mime.types` 里没有这两类）：
+  - `.opus` → `default_type audio/ogg`（否则 `application/octet-stream`，浏览器可能不播）
+  - `.lrc` → `default_type text/plain; charset utf-8`
+  - 实测：opus=audio/ogg、mp3=audio/mpeg、webp=image/webp、lrc=text/plain; charset=utf-8、player.js=application/javascript
+- 浏览器实测（Playwright + 本机 Chrome，直连 192.168.31.149）：
+  - island 只有 1 个、`dataset.bound=1`、懒加载脚本已注入、playlist 长度 2
+  - 播放：`cai-shi.opus` 536s 正常推进、volume 0.72、标题「采石」/歌手「万能青年旅店」
+  - 切歌：下一首 → `dont-call.opus` 250s、标题「Don't Call」/歌手「蔡徐坤」；上一首 → 回到采石
+  - 无歌词时播放器显示曲名（符合 m00845 的要求）；歌词请求 200
+  - 折叠态 250×48、移动端 390 宽无横向滚动
+- 站点没有 404.html（还没做 404 页面），`error_page 404 /404.html` 目前会取到 nginx 默认页
+- 只构建了 1 个页面（首页）；文章列表/详情/关于/归档/标签/404/RSS/sitemap 都还没做
+- 其它已知：`/media/` 与 `/_astro/` 目录列表返回 403（没有 autoindex，正常）；apache2 仍 inactive；frpc 仍关闭
